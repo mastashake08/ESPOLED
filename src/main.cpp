@@ -25,6 +25,9 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 String receivedMessage = "";
 
+// Forward declaration
+void updateDisplay(String message);
+
 // BLE Server Callbacks
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -41,10 +44,10 @@ class MyServerCallbacks: public BLEServerCallbacks {
 // BLE Characteristic Callbacks
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string value = pCharacteristic->getValue();
+      String value = pCharacteristic->getValue().c_str();
 
       if (value.length() > 0) {
-        receivedMessage = String(value.c_str());
+        receivedMessage = value;
         Serial.print("Received: ");
         Serial.println(receivedMessage);
         
@@ -55,7 +58,6 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 };
 
 // Function declarations
-void updateDisplay(String message);
 void initOLED();
 void initBLE();
 
