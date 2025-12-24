@@ -63,7 +63,10 @@ void initBLE();
 
 void setup() {
   Serial.begin(115200);
+  delay(1000); // Give serial time to initialize
+  Serial.println("\n\n=================================");
   Serial.println("ESP32 BLE OLED Server Starting...");
+  Serial.println("=================================");
 
   // Initialize OLED display
   initOLED();
@@ -71,10 +74,26 @@ void setup() {
   // Initialize BLE
   initBLE();
   
-  Serial.println("System Ready - Waiting for BLE connections...");
+  Serial.println("\n=================================");
+  Serial.println("System Ready!");
+  Serial.println("- Send text via BLE or Serial Monitor");
+  Serial.println("- Type text and press Enter to display");
+  Serial.println("=================================\n");
 }
 
 void loop() {
+  // Check for serial input
+  if (Serial.available() > 0) {
+    String serialMessage = Serial.readStringUntil('\n');
+    serialMessage.trim(); // Remove whitespace/newlines
+    
+    if (serialMessage.length() > 0) {
+      Serial.print("Serial input received: ");
+      Serial.println(serialMessage);
+      updateDisplay(serialMessage);
+    }
+  }
+  
   // Handle BLE connection state changes
   if (!deviceConnected && oldDeviceConnected) {
     delay(500); // Give the bluetooth stack time to get ready
@@ -92,14 +111,42 @@ void loop() {
 }
 
 void initOLED() {
-  // Initialize I2C with default pins (GPIO21=SDA, GPIO22=SCL)
-  Wire.begin();
+  // Initialize I2C with explicit pins (GPIO21=SDA, GPIO22=SCL)
+  Wire.begin(21, 22);
+  delay(100);
+  
+  Serial.println("Scanning I2C bus...");
+  byte error, address;
+  int nDevices = 0;
+  for(address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.print("I2C device found at address 0x");
+      if (address < 16) Serial.print("0");
+      Serial.println(address, HEX);
+      nDevices++;
+    }
+  }
+  if (nDevices == 0) {
+    Serial.println("No I2C devices found!");
+  }
+  
+  Serial.print("Attempting to initialize display at address 0x");
+  Serial.println(SCREEN_ADDRESS, HEX);
   
   // Initialize display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Halt if display init fails
+    Serial.println(F("Check:"));
+    Serial.println(F("- I2C address (try 0x3D if 0x3C fails)"));
+    Serial.println(F("- Wiring: SDA->GPIO21, SCL->GPIO22"));
+    Serial.println(F("- Display power connection"));
+    Serial.println(F("Continuing without display..."));
+    return; // Continue without display instead of halting
   }
+  
+  Serial.println("Display initialized successfully!");
   
   // Clear display and show startup message
   display.clearDisplay();
@@ -112,12 +159,12 @@ void initOLED() {
   display.println(F("connection..."));
   display.display();
   
-  Serial.println("OLED Display Initialized");
+  Serial.println("OLED Display Ready");
 }
 
 void initBLE() {
   // Create BLE Device
-  BLEDevice::init("ESP32_OLED");
+  BLEDevice::init("MORIAH_ESP");
 
   // Create BLE Server
   pServer = BLEDevice::createServer();
@@ -150,7 +197,7 @@ void initBLE() {
   pAdvertising->setMinPreferred(0x12);
   BLEDevice::startAdvertising();
   
-  Serial.println("BLE Service Started - Device Name: ESP32_OLED");
+  Serial.println("BLE Service Started - Device Name: MORIAH_ESP");
   Serial.print("Service UUID: ");
   Serial.println(SERVICE_UUID);
 }
